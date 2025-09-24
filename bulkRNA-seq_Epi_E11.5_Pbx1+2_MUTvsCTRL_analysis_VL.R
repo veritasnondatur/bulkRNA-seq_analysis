@@ -1,3 +1,80 @@
+## Analysis of bulk RNA-seq of E11.5 Pbx1/2 mutant tissue of lambdoidal junction
+# Author: Vera Laub, adapted from Martas analysis code
+# Date last modified: 2025-09-23
+
+# Set working directory (if not already done)
+setwd("/Users/veralaub/Documents/postdoc/bioinformatics/data/RNA-seq/midface/E11.5_Pbx1+2_mutants_vs_ctrl/Louis_bulk_analyses/")
+
+# Read the RDS file
+adata_deseq2 <- readRDS("adata_deseq2 (1).rds")
+
+# Check the object type and content
+class(adata_deseq2)
+str(adata_deseq2)
+
+# -------------------------------
+# Violin plots for genes of interest
+# -------------------------------
+
+# Load libraries
+library(DESeq2)
+library(ggplot2)
+library(tidyr)
+library(org.Mm.eg.db)
+
+# Set working directory (if not already done)
+setwd("/Users/veralaub/Documents/postdoc/bioinformatics/data/RNA-seq/midface/E11.5_Pbx1+2_mutants_vs_ctrl/2025-09-23_Vera_analysis/")
+
+# Extract normalized counts
+norm_counts <- counts(adata_deseq2, normalized = TRUE)
+
+# Map Ensembl IDs to gene symbols
+symbols <- mapIds(org.Mm.eg.db,
+                  keys = rownames(norm_counts),
+                  column = "SYMBOL",
+                  keytype = "ENSEMBL",
+                  multiVals = "first")
+
+# Add as a column
+df <- as.data.frame(norm_counts)
+df$gene_symbol <- symbols[rownames(df)]
+
+# Reshape to long format
+df_long <- pivot_longer(df, -gene_symbol, names_to = "sample", values_to = "counts")
+
+# Add condition info from colData
+df_long$condition <- colData(adata_deseq2)$condition[match(df_long$sample, colnames(adata_deseq2))]
+
+# Genes of interest
+genes_of_interest <- c("Pbx1", "Pbx2", "Zfhx3", "Bmp4", "Bmpr1a", 
+                       "Smad4", "Id2", "Itga3", "Itga6")
+
+# Subset only those genes (remove NAs)
+df_plot <- subset(df_long, gene_symbol %in% genes_of_interest & !is.na(gene_symbol))
+
+# Now plot
+p <- ggplot(df_plot, aes(x = condition, y = counts, fill = condition)) +
+  geom_violin(trim = FALSE) +
+  geom_jitter(width = 0.2, alpha = 0.6, size = 1) +
+  facet_wrap(~ gene_symbol, scales = "free_y") +
+  theme_bw() +
+  labs(title = "Expression of selected genes",
+       y = "Normalized counts", x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5))
+
+# Save
+ggsave("violin_genes_of_interest.png", p, width = 12, height = 8, dpi = 300)
+ggsave("violin_genes_of_interest.pdf", p, width = 12, height = 8)
+
+print(p)
+
+
+################################################################################
+### CODE USING DATA FROM MARTA PROBABLY UNSUCCESSFUL EXPERIMENT BC PBX1/2 KO BAD
+
+
 #### Analysis of bulk RNA-seq of FACS-sorted (Epcam-APC) E11.5 epithelial cells 
 #### from Pbx1/2 mutant embryos
 # Author: Vera Laub, adapted from Martas analysis code
